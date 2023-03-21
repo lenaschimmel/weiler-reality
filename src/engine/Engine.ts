@@ -23,6 +23,7 @@ export class Engine {
   public readonly resources!: Resources
   public readonly experience!: Experience
   private readonly loader!: Loader
+  public xr: THREE.WebXRManager
 
   constructor({
     canvas,
@@ -50,6 +51,8 @@ export class Engine {
     this.resources = new Resources(this.experience.resources)
     this.loader = new Loader()
 
+    this.xr = this.renderEngine.getXr()
+
     this.resources.on('loaded', () => {
       this.experience.init()
       this.loader.complete()
@@ -63,7 +66,7 @@ export class Engine {
   update(delta: number) {
     if (!this.loader.isComplete) return
 
-    this.camera.update()
+    this.camera.update(delta)
     this.renderEngine.update()
     this.experience.update(delta)
     this.debug.update()

@@ -6,7 +6,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass'
 
 export class RenderEngine implements GameEntity {
-  private readonly renderer: WebGLRenderer
+  public readonly renderer: WebGLRenderer
   composer: EffectComposer
 
   constructor(private engine: Engine) {
@@ -17,8 +17,8 @@ export class RenderEngine implements GameEntity {
 
     this.renderer.physicallyCorrectLights = true
     this.renderer.outputEncoding = THREE.sRGBEncoding
-    this.renderer.toneMapping = THREE.CineonToneMapping
-    this.renderer.toneMappingExposure = 1.75
+    this.renderer.toneMapping = THREE.LinearToneMapping
+    this.renderer.toneMappingExposure = 1.0
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.setClearColor('#000000')
@@ -42,5 +42,13 @@ export class RenderEngine implements GameEntity {
     this.renderer.setSize(this.engine.sizes.width, this.engine.sizes.height)
     this.composer.setSize(this.engine.sizes.width, this.engine.sizes.height)
     this.composer.render()
+  }
+
+  getXr(): THREE.WebXRManager {
+    return this.renderer.xr
+  }
+
+  addRenderCallback(callback: XRFrameRequestCallback) {
+    this.renderer.setAnimationLoop(callback)
   }
 }
