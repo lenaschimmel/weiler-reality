@@ -1,10 +1,6 @@
 import { Engine } from './Engine'
 import * as THREE from 'three'
-import { FirstPersonControls } from 'three/examples/jsm/controls/FirstPersonControls.js'
-// TODO: use
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js'
-// and implement it like
-// https://github.com/mrdoob/three.js/blob/master/examples/misc_controls_pointerlock.html
 import { GameEntity } from './GameEntity'
 
 export class Camera implements GameEntity {
