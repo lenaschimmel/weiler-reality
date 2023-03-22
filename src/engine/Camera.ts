@@ -2,18 +2,24 @@ import { Engine } from './Engine'
 import * as THREE from 'three'
 import { FirstPersonControls } from 'three/examples/jsm/controls/FirstPersonControls.js'
 // TODO: use
-// import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js'
 // and implement it like
 // https://github.com/mrdoob/three.js/blob/master/examples/misc_controls_pointerlock.html
 import { GameEntity } from './GameEntity'
 
 export class Camera implements GameEntity {
   public instance!: THREE.PerspectiveCamera
-  private controls!: FirstPersonControls
+  private controls!: PointerLockControls
+  private moveForward: boolean = false
+  private moveBackward: boolean = false
+  private moveLeft: boolean = false
+  private moveRight: boolean = false
+  private movementSpeed = 4
 
   constructor(private engine: Engine) {
     this.initCamera()
     this.initControls()
+    this.initController()
   }
 
   private initCamera() {
@@ -28,10 +34,7 @@ export class Camera implements GameEntity {
   }
 
   private initControls() {
-    this.controls = new FirstPersonControls(this.instance, this.engine.canvas)
-    this.controls.movementSpeed = 3
-    this.controls.lookSpeed = 0.1
-    this.controls.update(0)
+    this.controls = new PointerLockControls(this.instance, this.engine.canvas)
   }
 
   resize() {
@@ -40,6 +43,87 @@ export class Camera implements GameEntity {
   }
 
   update(delta: number) {
-    this.controls.update(delta)
+    if (this.moveForward) {
+      this.controls.moveForward(delta * this.movementSpeed)
+    }
+    if (this.moveBackward) {
+      this.controls.moveForward(-delta * this.movementSpeed)
+    }
+    if (this.moveLeft) {
+      this.controls.moveRight(-delta * this.movementSpeed)
+    }
+    if (this.moveRight) {
+      this.controls.moveRight(delta * this.movementSpeed)
+    }
+  }
+
+  initController() {
+    const blocker = document.getElementById('blocker')!
+    const instructions = document.getElementById('instructions')!
+
+    instructions.addEventListener('click', () => {
+      this.controls.lock()
+    })
+
+    this.controls.addEventListener('lock', () => {
+      instructions.style.display = 'none'
+      blocker.style.display = 'none'
+    })
+
+    this.controls.addEventListener('unlock', () => {
+      blocker.style.display = 'block'
+      instructions.style.display = ''
+    })
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      switch (event.code) {
+        case 'ArrowUp':
+        case 'KeyW':
+          this.moveForward = true
+          break
+
+        case 'ArrowLeft':
+        case 'KeyA':
+          this.moveLeft = true
+          break
+
+        case 'ArrowDown':
+        case 'KeyS':
+          this.moveBackward = true
+          break
+
+        case 'ArrowRight':
+        case 'KeyD':
+          this.moveRight = true
+          break
+      }
+    }
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      switch (event.code) {
+        case 'ArrowUp':
+        case 'KeyW':
+          this.moveForward = false
+          break
+
+        case 'ArrowLeft':
+        case 'KeyA':
+          this.moveLeft = false
+          break
+
+        case 'ArrowDown':
+        case 'KeyS':
+          this.moveBackward = false
+          break
+
+        case 'ArrowRight':
+        case 'KeyD':
+          this.moveRight = false
+          break
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('keyup', onKeyUp)
   }
 }
