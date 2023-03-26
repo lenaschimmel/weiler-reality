@@ -10,6 +10,8 @@ export class Room implements Experience {
   resources: Resource[] = []
   teleporter: Teleporter | undefined
   envMap: THREE.Texture | undefined
+  //prefix = "wr/";
+  prefix = ''
 
   constructor(private engine: Engine) {}
 
@@ -22,6 +24,7 @@ export class Room implements Experience {
     })
     this.engine.xr.enabled = true
 
+    // This does not only load the scene, it also applies several changes
     this.loadScene()
 
     document.body.appendChild(
@@ -52,8 +55,10 @@ export class Room implements Experience {
 
   loadScene() {
     const gltfLoader = new GLTFLoader()
-    gltfLoader.load('/wr/gltf/BakeTest.gltf', (gltf) => {
+    gltfLoader.load('/wr/gltf/Room2.gltf', (gltf) => {
       const root = gltf.scene
+
+      this.logObjectTree(root)
 
       // SimpleBake adds a copy of each object with fully baked textures (containing
       // combined base texture and lighting), which is the inferior approach to visualization.
@@ -62,36 +67,75 @@ export class Room implements Experience {
 
       // For each object that we don't want to remove, upgrade the material to use the proper
       // textures for lighting and reflection.
-      root.traverse((object: THREE.Object3D) => {
-        if (object.name.endsWith('_Baked')) {
-          toRemove.push(object)
-        } else if (object.type == 'Mesh') {
-          let mesh = object as THREE.Mesh
+      this.convertObject(root, toRemove)
 
-          // material may be a single object or an array (ough, what an ugly API decision!)
-          // and we will definitely have meshed with multiple materials in our room model.
-          if (Array.isArray(mesh.material)) {
-            let matArray = mesh.material as Array<THREE.Material>
-            for (const mat of matArray) {
-              this.upgradeMaterial(mat as THREE.Material, object.name)
-            }
-          } else {
-            mesh.material = this.upgradeMaterial(
-              mesh.material as THREE.Material,
-              object.name
-            )
-          }
-        }
-      })
-
+      for (const obj of toRemove) {
+        console.log('Removing: ', obj.name)
+      }
       root.remove(...toRemove)
 
       // needed to bring the room down from absolute position (about
       // 70m above sea level) to local position. Not needed for other demos.
-      //root.translateY(-71.369 + 2.18)
+      root.translateY(-71.369 + 2.18)
 
       this.engine.scene.add(root)
     })
+  }
+
+  logObjectTree(object: THREE.Object3D): void {
+    if (object.type == 'Group') {
+      console.group('Group: ' + object.name)
+      for (const child of object.children) {
+        this.logObjectTree(child)
+      }
+      console.groupEnd()
+    } else {
+      console.log(object.type + ': ' + object.name)
+    }
+  }
+
+  convertObject(object: THREE.Object3D, toRemove: Array<THREE.Object3D>): void {
+    // Step down into groups recursively
+    if (object.type == 'Group') {
+      for (const child of object.children) {
+        this.convertObject(child, toRemove)
+      }
+    } else {
+      if (object.name.endsWith('_Baked') || object.type != 'Mesh') {
+        toRemove.push(object)
+        return
+      }
+
+      let mesh = object as THREE.Mesh
+      let name = object.name
+      // Exporting with SimpleBake will create Groups from single objects with multiple materials, and may append numbers
+      // to the mesh name. We need the original mesh name to find the generated maps which are shared by all new objects.
+      if (object.parent?.name != 'Scene') {
+        name = object.parent?.name || name
+      }
+
+      if (['Leucht', 'Spiegel'].includes(name)) {
+        // Nothing to do in those simple materials now
+        return
+      }
+
+      // material may be a single object or an array (ough, what an ugly API decision!)
+      // and we will definitely have meshes with multiple materials in our room model.
+      if (Array.isArray(mesh.material)) {
+        let matArray = mesh.material as Array<THREE.Material>
+        for (let i = 0; i < matArray.length; i++) {
+          matArray[i] = this.upgradeMaterial(
+            matArray[i] as THREE.Material,
+            name
+          )
+        }
+      } else {
+        mesh.material = this.upgradeMaterial(
+          mesh.material as THREE.Material,
+          name
+        )
+      }
+    }
   }
 
   // Makes a copy of the given material if it is a MeshStandardMaterial,
@@ -99,36 +143,71 @@ export class Room implements Experience {
   // the object afterwards.
   upgradeMaterial(mat: THREE.Material, name: string): THREE.Material {
     // Many material types have the needed attributes (lightMap, envMap, aoMap) but the base class
-    // doesn't, and there is no common super class which has it.
-    // I think that all objects will have a MeshStandardMaterial, but if we ever encounter
-    // another type, we have to find a better way than this casting:
+    // doesn't, and there is no common super class which has it. So we support a limited set of materials.
+    let castedMat: THREE.MeshPhysicalMaterial | THREE.MeshStandardMaterial
 
+    // In the original model, multiple objects may share the same material.
+    // But since each object has its own lightmap, each needs its own material as well.
     if (mat.type == 'MeshStandardMaterial') {
-      // In the original model, multiple objects may share the same material.
-      // But since each object has its own lightmap, each needs its own material as well.
-      const stdMat = mat.clone() as THREE.MeshStandardMaterial
-
-      // The names of textures are constructed from the object name.
-      // Since the integrated de-noising does not work, we use ImageMagick via a shell script, which adds
-      // "_denoise" to the name.
-      const textureLightmap = new THREE.TextureLoader().load(
-        'gltf/' + name + '_Bake1_PBR_Lightmap_denoise.jpg'
-      )
-      textureLightmap.flipY = false
-      stdMat.lightMap = textureLightmap
-      stdMat.lightMapIntensity = 1.2
-      stdMat.envMap = this.envMap!
-
-      const textureAO = new THREE.TextureLoader().load(
-        'gltf/' + name + '_Bake1_PBR_Ambient_Occlusion_denoise.jpg'
-      )
-      textureAO.flipY = false
-      stdMat.aoMap = textureAO
-
-      return stdMat
+      castedMat = new THREE.MeshPhysicalMaterial({
+        ...mat,
+        blendDstAlpha: 0,
+        blendEquationAlpha: 0,
+        blendSrcAlpha: 0,
+        shadowSide: THREE.FrontSide,
+      })
+      // mat.clone() as THREE.MeshStandardMaterial
+    } else if (mat.type == 'MeshPhysicalMaterial') {
+      castedMat = mat.clone() as THREE.MeshPhysicalMaterial
     } else {
-      console.log('Unsupported material type: ', mat.type)
+      console.log('Unsupported material type: ', mat.type, ' in object ', name)
+      return mat
     }
-    return mat
+
+    if (mat.name == 'Fensterglass unsichtbar') {
+      return new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        envMap: this.envMap!,
+      })
+    }
+    // console.log(name + ": converting material " + mat.name);
+
+    let textureLightmap = new THREE.TextureLoader().load(
+      this.prefix +
+        'gltf/' +
+        name.replace(/Mesh(_.)?/, '') +
+        '_Bake1_PBR_Lightmap_denoise.png'
+    )
+
+    textureLightmap.flipY = false
+    textureLightmap.encoding = THREE.LinearEncoding
+    castedMat.lightMap = textureLightmap
+    castedMat.lightMapIntensity = 10
+    //console.log("Assigned lightmap: ", textureLightmap);
+    castedMat.envMap = this.envMap!
+
+    const textureAO = new THREE.TextureLoader().load(
+      this.prefix +
+        'gltf/' +
+        name.replace(/Mesh(_.)?/, '') +
+        '_Bake1_PBR_Ambient_Occlusion_denoise.jpg'
+    )
+    textureAO.encoding = THREE.LinearEncoding
+    textureAO.flipY = false
+    castedMat.aoMap = textureAO
+
+    if (mat.name == 'Window Spacer Bar') {
+      castedMat.metalness = 1
+      castedMat.metalnessMap = null
+      castedMat.roughness = 0.2
+      castedMat.roughnessMap = null
+      castedMat.lightMap = null
+      castedMat.aoMap = null
+    }
+
+    console.log(name + ': converted material ' + mat.name + ' to', castedMat)
+
+    return castedMat
   }
 }
