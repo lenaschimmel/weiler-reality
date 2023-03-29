@@ -2,22 +2,27 @@ import { WebGLRenderer } from 'three'
 import { Engine } from './Engine'
 import * as THREE from 'three'
 import { GameEntity } from './GameEntity'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass'
-import { AdaptiveToneMappingPass } from 'three/examples/jsm/postprocessing/AdaptiveToneMappingPass'
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass'
-//import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass'
-import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js'
+
+const minLight = 0.5
+const maxLight = 3.0
+const startLight = 1.3
 
 export class RenderEngine implements GameEntity {
   public readonly renderer: WebGLRenderer
-  composer: EffectComposer
-  dynamicHdrEffectComposer: EffectComposer
-  //bloomPass: UnrealBloomPass
+
+  public light: number = startLight
+
+  offscreenCanvas: HTMLCanvasElement
 
   constructor(private engine: Engine) {
     const canvas = this.engine.canvas
-    canvas.getContext('webgl2')?.getExtension('EXT_float_blend')
+    const context = canvas.getContext('webgl2')
+    context?.getExtension('EXT_float_blend')
+
+    this.offscreenCanvas = document.createElement('canvas')
+    this.offscreenCanvas.width = 10
+    this.offscreenCanvas.height = 10
+
     this.renderer = new WebGLRenderer({
       canvas: canvas,
       antialias: true,
@@ -26,57 +31,58 @@ export class RenderEngine implements GameEntity {
     this.renderer.physicallyCorrectLights = true
     this.renderer.outputEncoding = THREE.LinearEncoding
     this.renderer.toneMapping = THREE.LinearToneMapping
-    this.renderer.toneMappingExposure = 1.0
+    this.renderer.toneMappingExposure = 5.0
     this.renderer.setClearColor('#000000')
     this.renderer.setSize(this.engine.sizes.width, this.engine.sizes.height)
     this.renderer.setPixelRatio(Math.min(this.engine.sizes.pixelRatio, 2))
-
-    this.composer = new EffectComposer(this.renderer)
-
-    const renderPass = new RenderPass(
-      this.engine.scene,
-      this.engine.camera.instance
-    )
-
-    const hdrRenderTarget = new THREE.WebGLRenderTarget(
-      this.engine.sizes.width,
-      this.engine.sizes.height,
-      {
-        type: THREE.FloatType,
-      }
-    )
-    this.dynamicHdrEffectComposer = new EffectComposer(
-      this.renderer,
-      hdrRenderTarget
-    )
-    this.dynamicHdrEffectComposer.setSize(window.innerWidth, window.innerHeight)
-
-    const adaptToneMappingPass = new AdaptiveToneMappingPass(true, 256)
-    adaptToneMappingPass.setAdaptionRate(0.85)
-    adaptToneMappingPass.setAverageLuminance(0.4)
-    adaptToneMappingPass.setMaxLuminance(0.9)
-    adaptToneMappingPass.setMinLuminance(0.01)
-    adaptToneMappingPass.setMiddleGrey(0.09)
-    adaptToneMappingPass.needsSwap = true
-    const gammaCorrectionPass = new ShaderPass(GammaCorrectionShader)
-
-    //this.bloomPass = new UnrealBloomPass(undefined, 0.3, 0.06, 1.01);
-
-    this.dynamicHdrEffectComposer.addPass(renderPass)
-    this.dynamicHdrEffectComposer.addPass(adaptToneMappingPass)
-    this.dynamicHdrEffectComposer.addPass(gammaCorrectionPass)
-    //this.dynamicHdrEffectComposer.addPass( this.bloomPass );
   }
 
   update(delta: number) {
-    this.composer.render()
-    this.dynamicHdrEffectComposer.render(delta)
+    const canvas = this.engine.canvas
+    this.renderer.render(this.engine.scene, this.engine.camera.instance)
+    this.renderer.toneMappingExposure = this.light
+
+    // We need to copy the 3d canvas to a 2d canvas, and then read the 2d canvas.
+    // This was after I tried an hour without the extra canvas, but then
+    // I found https://stackoverflow.com/a/40390638/39946
+    var ctx = this.offscreenCanvas.getContext('2d')!
+    const border = 0.3
+    ctx.drawImage(
+      canvas,
+      canvas.width * border,
+      canvas.height * 0.3,
+      canvas.width * (1 - 2 * border),
+      canvas.height * (1 - 2 * border),
+      0,
+      0,
+      10,
+      10
+    )
+    var imageData = ctx.getImageData(0, 0, 10, 10)
+    // The advantage is that we can scale the full frame to a smaller off-screen canvas during the copy, and then
+    // only need to process a few pixels. I ignore a wide border of 30% width and just copy the center.
+
+    let sum = 0
+    const d = imageData.data
+    for (let i = 0; i < 100; i++) {
+      const base = i * 4
+      const lum =
+        0.2126 * d[base + 0] + 0.7152 * d[base + 1] + 0.0722 * d[base + 2]
+      sum += lum
+    }
+    const avg = sum / (100 * 255)
+    const target = 0.25
+
+    const fact =
+      1.0 + THREE.MathUtils.clamp((target - avg) * delta * 2, -0.1, 0.1)
+
+    console.log('avg: ' + avg + ' -> fact: ' + fact + ', light: ' + this.light)
+
+    this.light = THREE.MathUtils.clamp(this.light * fact, minLight, maxLight)
   }
 
   resize() {
     this.renderer.setSize(this.engine.sizes.width, this.engine.sizes.height)
-    this.composer.setSize(this.engine.sizes.width, this.engine.sizes.height)
-    this.composer.render()
   }
 
   getXr(): THREE.WebXRManager {

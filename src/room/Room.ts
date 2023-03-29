@@ -196,7 +196,7 @@ export class Room implements Experience {
     textureLightmap.flipY = false
     textureLightmap.encoding = THREE.LinearEncoding
     castedMat.lightMap = textureLightmap
-    castedMat.lightMapIntensity = 5
+    castedMat.lightMapIntensity = 15
     //console.log("Assigned lightmap: ", textureLightmap);
     castedMat.envMap = this.envMap!
 
