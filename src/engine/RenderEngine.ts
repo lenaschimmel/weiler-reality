@@ -1,4 +1,4 @@
-import { FloatType, WebGLRenderer } from 'three'
+import { WebGLRenderer } from 'three'
 import { Engine } from './Engine'
 import * as THREE from 'three'
 import { GameEntity } from './GameEntity'
@@ -15,6 +15,8 @@ export class RenderEngine implements GameEntity {
   renderPass: RenderPass
   width: number
   height: number
+  time: number = 0
+  //bloomPass: UnrealBloomPass
 
   constructor(private engine: Engine) {
     const canvas = this.engine.canvas
@@ -74,12 +76,26 @@ export class RenderEngine implements GameEntity {
 
   update(delta: number) {
     // THIS LINE works in "inline" and "vr" mode, but does not adjust brightness
-    //this.render(delta)
+    this.render(delta)
 
     // THOSE LINES adjust brightness in "inline", but remove all geometry except
     // the skybox in "vr" mode
-    this.composer.render()
-    this.dynamicHdrEffectComposer.render(delta)
+    //this.composer.render()
+    //this.dynamicHdrEffectComposer.render(delta)
+    this.time += delta
+    const multi = Math.sin(this.time / 1) * 20 + 25
+    console.log(multi)
+    this.engine.scene.traverse((obj) => {
+      let mesh = obj as THREE.Mesh
+      if (Array.isArray(mesh.material)) {
+        let matArray = mesh.material as Array<THREE.Material>
+        for (let i = 0; i < matArray.length; i++) {
+          ;(matArray[i] as THREE.MeshPhysicalMaterial).lightMapIntensity = multi
+        }
+      } else if (mesh.material != null) {
+        ;(mesh.material as THREE.MeshPhysicalMaterial).lightMapIntensity = multi
+      }
+    })
   }
 
   render(delta: number) {

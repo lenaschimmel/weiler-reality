@@ -1,4 +1,4 @@
-https://192.168.1.64:444 {
+https://192.168.1.63:444 {
 	handle_path /wr* {
 		root * /Users/lena/src/weiler-reality/dist
 		file_server browse
