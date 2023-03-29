@@ -11,6 +11,8 @@ export class Room implements Experience {
   resources: Resource[] = []
   teleporter: Teleporter | undefined
   envMap: THREE.Texture | undefined
+
+  // TODO use vite env vars to set this according to build mode
   //prefix = "wr/";
   prefix = ''
 
@@ -194,7 +196,7 @@ export class Room implements Experience {
     textureLightmap.flipY = false
     textureLightmap.encoding = THREE.LinearEncoding
     castedMat.lightMap = textureLightmap
-    castedMat.lightMapIntensity = 10
+    castedMat.lightMapIntensity = 5
     //console.log("Assigned lightmap: ", textureLightmap);
     castedMat.envMap = this.envMap!
 
