@@ -5,6 +5,7 @@ import { Resource } from '../engine/Resources'
 import { Teleporter } from './Teleporter'
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader'
 
 export class Room implements Experience {
   resources: Resource[] = []
@@ -37,20 +38,30 @@ export class Room implements Experience {
   update() {}
 
   initSkySphere() {
-    // Construct an actual sphere that we use for rendering the background.
-    // We will also use the same texture as envMap for reflections on materials.
-    const skyGeometry = new THREE.SphereGeometry(500, 60, 40)
-    // invert the geometry on the x-axis so that all of the faces point inward
-    skyGeometry.scale(-1, 1, 1)
+    new EXRLoader().load('/wr/gltf/PhotoPano2.exr', (texture) => {
+      texture.mapping = THREE.EquirectangularReflectionMapping
 
-    this.envMap = new THREE.TextureLoader().load('/wr/pano.jpg')
-    this.envMap.encoding = THREE.sRGBEncoding
-    this.envMap.mapping = THREE.EquirectangularReflectionMapping
-    const material = new THREE.MeshBasicMaterial({ map: this.envMap })
+      const pmremGenerator = new THREE.PMREMGenerator(
+        this.engine.renderEngine.renderer
+      )
+      pmremGenerator.compileEquirectangularShader()
 
-    const mesh = new THREE.Mesh(skyGeometry, material)
+      pmremGenerator.fromEquirectangular(texture)
+      this.envMap = texture
 
-    this.engine.scene.add(mesh)
+      // Construct an actual sphere that we use for rendering the background.
+      // We will also use the same texture as envMap for reflections on materials.
+      const skyGeometry = new THREE.SphereGeometry(500, 60, 40)
+      // invert the geometry on the x-axis so that all of the faces point inward
+      skyGeometry.scale(-1, 1, 1)
+      skyGeometry.rotateY(THREE.MathUtils.degToRad(-79 - 4))
+
+      const material = new THREE.MeshBasicMaterial({ map: this.envMap })
+
+      const mesh = new THREE.Mesh(skyGeometry, material)
+
+      this.engine.scene.add(mesh)
+    })
   }
 
   loadScene() {
