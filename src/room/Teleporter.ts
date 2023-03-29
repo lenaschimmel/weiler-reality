@@ -78,34 +78,35 @@ export class Teleporter {
       this.engine.scene.add(controllerGrips[i])
     }
 
-    this.engine.renderEngine.addRenderCallback(() => {
-      this.intersection = undefined
-      const tempMatrix = new THREE.Matrix4()
-      for (let i = 0; i < 2; i++) {
-        if (this.isSelecting[i] === true) {
-          tempMatrix.identity().extractRotation(controllers[i].matrixWorld)
+    this.engine.renderEngine.addRenderCallback(
+      (time: DOMHighResTimeStamp, _frame: XRFrame) => {
+        this.intersection = undefined
+        const tempMatrix = new THREE.Matrix4()
+        for (let i = 0; i < 2; i++) {
+          if (this.isSelecting[i] === true) {
+            tempMatrix.identity().extractRotation(controllers[i].matrixWorld)
 
-          this.raycaster.ray.origin.setFromMatrixPosition(
-            controllers[i].matrixWorld
-          )
-          this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix)
-          const intersects = this.raycaster.intersectObjects([this.floor])
+            this.raycaster.ray.origin.setFromMatrixPosition(
+              controllers[i].matrixWorld
+            )
+            this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix)
+            const intersects = this.raycaster.intersectObjects([this.floor])
 
-          if (intersects.length > 0) {
-            this.intersection = intersects[0].point
+            if (intersects.length > 0) {
+              this.intersection = intersects[0].point
+            }
           }
         }
-      }
 
-      if (this.intersection) {
-        this.marker.position.copy(this.intersection)
+        if (this.intersection) {
+          this.marker.position.copy(this.intersection)
+        }
+        this.marker.visible = this.intersection !== undefined
+
+        // THIS IS WHERE THE VR RENDERING TAKES PLACE
+        this.engine.renderEngine.render(time)
       }
-      this.marker.visible = this.intersection !== undefined
-      this.engine.renderEngine.renderer.render(
-        this.engine.scene,
-        this.engine.camera.instance
-      )
-    })
+    )
   }
 
   buildController(data: any): THREE.Object3D | undefined {

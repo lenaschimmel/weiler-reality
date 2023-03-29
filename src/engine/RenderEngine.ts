@@ -1,4 +1,4 @@
-import { WebGLRenderer } from 'three'
+import { FloatType, WebGLRenderer } from 'three'
 import { Engine } from './Engine'
 import * as THREE from 'three'
 import { GameEntity } from './GameEntity'
@@ -6,22 +6,28 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass'
 import { AdaptiveToneMappingPass } from 'three/examples/jsm/postprocessing/AdaptiveToneMappingPass'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass'
-//import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass'
 import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js'
 
 export class RenderEngine implements GameEntity {
   public readonly renderer: WebGLRenderer
-  composer: EffectComposer
+  composer!: EffectComposer
   dynamicHdrEffectComposer: EffectComposer
-  //bloomPass: UnrealBloomPass
+  renderPass: RenderPass
+  width: number
+  height: number
 
   constructor(private engine: Engine) {
     const canvas = this.engine.canvas
-    canvas.getContext('webgl2')?.getExtension('EXT_float_blend')
+    canvas
+      .getContext('webgl2', { xrCompatible: true })
+      ?.getExtension('EXT_float_blend')
     this.renderer = new WebGLRenderer({
       canvas: canvas,
       antialias: true,
     })
+
+    this.width = canvas.width
+    this.height = canvas.height
 
     this.renderer.physicallyCorrectLights = true
     this.renderer.outputEncoding = THREE.LinearEncoding
@@ -33,11 +39,10 @@ export class RenderEngine implements GameEntity {
 
     this.composer = new EffectComposer(this.renderer)
 
-    const renderPass = new RenderPass(
+    this.renderPass = new RenderPass(
       this.engine.scene,
       this.engine.camera.instance
     )
-
     const hdrRenderTarget = new THREE.WebGLRenderTarget(
       this.engine.sizes.width,
       this.engine.sizes.height,
@@ -62,21 +67,58 @@ export class RenderEngine implements GameEntity {
 
     //this.bloomPass = new UnrealBloomPass(undefined, 0.3, 0.06, 1.01);
 
-    this.dynamicHdrEffectComposer.addPass(renderPass)
+    this.dynamicHdrEffectComposer.addPass(this.renderPass)
     this.dynamicHdrEffectComposer.addPass(adaptToneMappingPass)
     this.dynamicHdrEffectComposer.addPass(gammaCorrectionPass)
-    //this.dynamicHdrEffectComposer.addPass( this.bloomPass );
   }
 
   update(delta: number) {
+    // THIS LINE works in "inline" and "vr" mode, but does not adjust brightness
+    //this.render(delta)
+
+    // THOSE LINES adjust brightness in "inline", but remove all geometry except
+    // the skybox in "vr" mode
     this.composer.render()
     this.dynamicHdrEffectComposer.render(delta)
   }
 
+  render(delta: number) {
+    const gl = this.renderer
+    const camera = this.engine.camera.instance
+
+    // If not in session, render normally
+    if (!gl.xr.isPresenting) {
+      return this.renderer.render(this.engine.scene, camera)
+    }
+
+    // Manually handle XR
+    //gl.xr.enabled = false
+
+    // Update camera with XRPose
+    gl.xr.updateCamera(camera)
+
+    // Render stereo cameras
+    const { cameras } = gl.xr.getCamera()
+
+    cameras.forEach(({ viewport, matrixWorld, projectionMatrix }) => {
+      gl.setViewport(viewport)
+      camera.position.setFromMatrixPosition(matrixWorld)
+      camera.projectionMatrix.copy(projectionMatrix)
+
+      this.composer.render(delta)
+      this.renderer.render(this.engine.scene, camera)
+    })
+
+    // Reset
+    gl.setViewport(0, 0, this.width, this.height)
+    gl.xr.updateCamera(camera)
+    //gl.xr.enabled = true
+  }
+
   resize() {
-    this.renderer.setSize(this.engine.sizes.width, this.engine.sizes.height)
-    this.composer.setSize(this.engine.sizes.width, this.engine.sizes.height)
-    this.composer.render()
+    this.width = this.engine.sizes.width
+    this.height = this.engine.sizes.height
+    this.renderer.setSize(this.width, this.height)
   }
 
   getXr(): THREE.WebXRManager {
