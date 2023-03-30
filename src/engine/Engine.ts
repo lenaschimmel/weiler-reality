@@ -41,7 +41,6 @@ export class Engine {
     this.canvas = canvas
     this.sizes = new Sizes(this)
     this.debug = new DebugUI()
-    this.time = new RenderLoop(this)
     this.scene = new THREE.Scene()
     this.camera = new Camera(this)
     this.raycaster = new Raycaster(this)
@@ -52,6 +51,8 @@ export class Engine {
     this.loader = new Loader()
 
     this.xr = this.renderEngine.getXr()
+
+    this.time = new RenderLoop(this)
 
     this.resources.on('loaded', () => {
       this.experience.init()

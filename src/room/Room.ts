@@ -13,8 +13,8 @@ export class Room implements Experience {
   envMap: THREE.Texture | undefined
 
   // TODO use vite env vars to set this according to build mode
-  //prefix = "wr/";
-  prefix = ''
+  prefix = 'wr/'
+  //prefix = ''
 
   constructor(private engine: Engine) {}
 
@@ -40,13 +40,12 @@ export class Room implements Experience {
   update() {}
 
   initSkySphere() {
-    new EXRLoader().load('/wr/gltf/PhotoPano2.exr', (texture) => {
+    const pmremGenerator = new THREE.PMREMGenerator(
+      this.engine.renderEngine.renderer
+    )
+    pmremGenerator.compileEquirectangularShader()
+    new EXRLoader().load('/wr/gltf/pano_painted.exr', (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping
-
-      const pmremGenerator = new THREE.PMREMGenerator(
-        this.engine.renderEngine.renderer
-      )
-      pmremGenerator.compileEquirectangularShader()
 
       pmremGenerator.fromEquirectangular(texture)
       this.envMap = texture
@@ -56,7 +55,7 @@ export class Room implements Experience {
       const skyGeometry = new THREE.SphereGeometry(500, 60, 40)
       // invert the geometry on the x-axis so that all of the faces point inward
       skyGeometry.scale(-1, 1, 1)
-      skyGeometry.rotateY(THREE.MathUtils.degToRad(-79 - 4))
+      skyGeometry.rotateY(THREE.MathUtils.degToRad(180))
 
       const material = new THREE.MeshBasicMaterial({ map: this.envMap })
 

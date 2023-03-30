@@ -9,15 +9,13 @@ const startLight = 1.3
 
 export class RenderEngine implements GameEntity {
   public readonly renderer: WebGLRenderer
-
   public light: number = startLight
-
   offscreenCanvas: HTMLCanvasElement
 
   constructor(private engine: Engine) {
     const canvas = this.engine.canvas
-    const context = canvas.getContext('webgl2')
-    context?.getExtension('EXT_float_blend')
+    canvas.getContext('webgl2', { willReadFrequently: true })
+    //context?.getExtension('EXT_float_blend');
 
     this.offscreenCanvas = document.createElement('canvas')
     this.offscreenCanvas.width = 10
@@ -35,9 +33,18 @@ export class RenderEngine implements GameEntity {
     this.renderer.setClearColor('#000000')
     this.renderer.setSize(this.engine.sizes.width, this.engine.sizes.height)
     this.renderer.setPixelRatio(Math.min(this.engine.sizes.pixelRatio, 2))
+
+    this.engine.xr?.addEventListener('sessionstart', () => {
+      // reset to default when VR starts, because from then on, it will no longer adjust.
+      this.light = startLight
+    })
   }
 
   update(delta: number) {
+    this.render(delta)
+  }
+
+  render(delta: number) {
     const canvas = this.engine.canvas
     this.renderer.render(this.engine.scene, this.engine.camera.instance)
     this.renderer.toneMappingExposure = this.light
@@ -45,7 +52,9 @@ export class RenderEngine implements GameEntity {
     // We need to copy the 3d canvas to a 2d canvas, and then read the 2d canvas.
     // This was after I tried an hour without the extra canvas, but then
     // I found https://stackoverflow.com/a/40390638/39946
-    var ctx = this.offscreenCanvas.getContext('2d')!
+    var ctx = this.offscreenCanvas.getContext('2d', {
+      willReadFrequently: true,
+    })!
     const border = 0.3
     ctx.drawImage(
       canvas,
@@ -74,10 +83,8 @@ export class RenderEngine implements GameEntity {
     const target = 0.25
 
     const fact =
-      1.0 + THREE.MathUtils.clamp((target - avg) * delta * 2, -0.1, 0.1)
-
-    console.log('avg: ' + avg + ' -> fact: ' + fact + ', light: ' + this.light)
-
+      1.0 + THREE.MathUtils.clamp((target - avg) * delta * 3, -0.1, 0.1)
+    //console.log("delta: " + delta + ", avg: " + avg + " -> fact: " + fact + ", light: " + this.light);
     this.light = THREE.MathUtils.clamp(this.light * fact, minLight, maxLight)
   }
 
