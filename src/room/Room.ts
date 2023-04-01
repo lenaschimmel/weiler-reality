@@ -13,7 +13,8 @@ export class Room implements Experience {
   envMap: THREE.Texture | undefined
 
   // TODO use vite env vars to set this according to build mode
-  prefix = 'wr/'
+  // TODO understand why this is a thing at all, we use /wr in the URL in both modes anyway!
+  prefix = '/wr/'
   //prefix = ''
 
   constructor(private engine: Engine) {}
@@ -44,9 +45,10 @@ export class Room implements Experience {
       this.engine.renderEngine.renderer
     )
     pmremGenerator.compileEquirectangularShader()
-    new EXRLoader().load('/wr/gltf/pano_painted.exr', (texture) => {
+    new EXRLoader().load('/wr/gltf/pano_spring_dwab.exr', (texture) => {
+      //new THREE.TextureLoader().load('/wr/gltf/pano_spring.png', (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping
-
+      texture.encoding = THREE.LinearEncoding
       pmremGenerator.fromEquirectangular(texture)
       this.envMap = texture
 
@@ -185,29 +187,33 @@ export class Room implements Experience {
     }
     // console.log(name + ": converting material " + mat.name);
 
-    let textureLightmap = new THREE.TextureLoader().load(
+    // new EXRLoader().load(
+    //   '/gltf/' +
+    //   name.replace(/Mesh(_.)?/, '') +
+    //   '_Bake1_PBR_Lightmap.exr', (textureLightmap) => {
+
+    const textureLightmap = new THREE.TextureLoader().load(
       this.prefix +
         'gltf/' +
         name.replace(/Mesh(_.)?/, '') +
         '_Bake1_PBR_Lightmap_denoise.png'
-    )
-
+    ) //, (textureLightmap) => {
     textureLightmap.flipY = false
     textureLightmap.encoding = THREE.LinearEncoding
-    castedMat.lightMap = textureLightmap
-    castedMat.lightMapIntensity = 15
-    //console.log("Assigned lightmap: ", textureLightmap);
+    // Lightmaps must be assigned as ao maps to work as expected!
+    castedMat.aoMap = textureLightmap
     castedMat.envMap = this.envMap!
+    //});
 
-    const textureAO = new THREE.TextureLoader().load(
-      this.prefix +
-        'gltf/' +
-        name.replace(/Mesh(_.)?/, '') +
-        '_Bake1_PBR_Ambient_Occlusion_denoise.jpg'
-    )
-    textureAO.encoding = THREE.LinearEncoding
-    textureAO.flipY = false
-    castedMat.aoMap = textureAO
+    // const textureAO = new THREE.TextureLoader().load(
+    //   this.prefix +
+    //     'gltf/' +
+    //     name.replace(/Mesh(_.)?/, '') +
+    //     '_Bake1_PBR_Ambient_Occlusion_denoise.jpg'
+    // )
+    // textureAO.encoding = THREE.LinearEncoding
+    // textureAO.flipY = false
+    // castedMat.aoMap = textureAO
 
     if (mat.name == 'Window Spacer Bar') {
       castedMat.metalness = 1

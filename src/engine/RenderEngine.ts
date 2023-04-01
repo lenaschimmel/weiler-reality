@@ -3,9 +3,10 @@ import { Engine } from './Engine'
 import * as THREE from 'three'
 import { GameEntity } from './GameEntity'
 
-const minLight = 0.5
-const maxLight = 3.0
-const startLight = 1.3
+const minLight = 2.0
+const maxLight = 20.0
+const startLight = 12.0
+const targetAvg = 0.25
 
 export class RenderEngine implements GameEntity {
   public readonly renderer: WebGLRenderer
@@ -28,7 +29,7 @@ export class RenderEngine implements GameEntity {
 
     this.renderer.physicallyCorrectLights = true
     this.renderer.outputEncoding = THREE.LinearEncoding
-    this.renderer.toneMapping = THREE.LinearToneMapping
+    this.renderer.toneMapping = THREE.ReinhardToneMapping
     this.renderer.toneMappingExposure = 5.0
     this.renderer.setClearColor('#000000')
     this.renderer.setSize(this.engine.sizes.width, this.engine.sizes.height)
@@ -80,10 +81,9 @@ export class RenderEngine implements GameEntity {
       sum += lum
     }
     const avg = sum / (100 * 255)
-    const target = 0.25
 
     const fact =
-      1.0 + THREE.MathUtils.clamp((target - avg) * delta * 3, -0.1, 0.1)
+      1.0 + THREE.MathUtils.clamp((targetAvg - avg) * delta * 3, -0.1, 0.1)
     //console.log("delta: " + delta + ", avg: " + avg + " -> fact: " + fact + ", light: " + this.light);
     this.light = THREE.MathUtils.clamp(this.light * fact, minLight, maxLight)
   }
