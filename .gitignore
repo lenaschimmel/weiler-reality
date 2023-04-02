@@ -32,3 +32,6 @@ dist-ssr
 !.yarn/versions
 
 public/gltf/
+public/bakes
+/bakes/
+/oldbakes
