@@ -11,11 +11,12 @@ export class Room implements Experience {
   resources: Resource[] = []
   teleporter: Teleporter | undefined
   envMap: THREE.Texture | undefined
+  lightmaps: Map<string, Promise<THREE.DataTexture>> = new Map()
 
   // TODO use vite env vars to set this according to build mode
   // TODO understand why this is a thing at all, we use /wr in the URL in both modes anyway!
-  prefix = '/wr/'
-  //prefix = ''
+  //prefix = '/wr/'
+  prefix = ''
 
   constructor(private engine: Engine) {}
 
@@ -187,33 +188,30 @@ export class Room implements Experience {
     }
     // console.log(name + ": converting material " + mat.name);
 
-    // new EXRLoader().load(
-    //   '/gltf/' +
-    //   name.replace(/Mesh(_.)?/, '') +
-    //   '_Bake1_PBR_Lightmap.exr', (textureLightmap) => {
+    let objectName = name.replace(/Mesh(_.)?/, '').replaceAll(' ', '%20')
 
-    const textureLightmap = new THREE.TextureLoader().load(
-      this.prefix +
-        'gltf/' +
-        name.replace(/Mesh(_.)?/, '') +
-        '_Bake1_PBR_Lightmap_denoise.png'
-    ) //, (textureLightmap) => {
-    textureLightmap.flipY = false
-    textureLightmap.encoding = THREE.LinearEncoding
-    // Lightmaps must be assigned as ao maps to work as expected!
-    castedMat.aoMap = textureLightmap
-    castedMat.envMap = this.envMap!
-    //});
+    if (objectName.startsWith('Abstellbuegel')) {
+      objectName = 'Abstellbuegel'
+    }
+    if (objectName.startsWith('Stuetze')) {
+      objectName = 'Stuetze'
+    }
 
-    // const textureAO = new THREE.TextureLoader().load(
-    //   this.prefix +
-    //     'gltf/' +
-    //     name.replace(/Mesh(_.)?/, '') +
-    //     '_Bake1_PBR_Ambient_Occlusion_denoise.jpg'
-    // )
-    // textureAO.encoding = THREE.LinearEncoding
-    // textureAO.flipY = false
-    // castedMat.aoMap = textureAO
+    let lightmapName = '/bakes/' + objectName + '_map.exr'
+
+    let lightmapTex = this.lightmaps.get(lightmapName)
+    if (!lightmapTex) {
+      lightmapTex = new EXRLoader().loadAsync(lightmapName)
+      this.lightmaps.set(lightmapName, lightmapTex)
+    }
+
+    lightmapTex.then((textureLightmap) => {
+      textureLightmap.flipY = true
+      textureLightmap.encoding = THREE.LinearEncoding
+      // Lightmaps must be assigned as ao maps to work as expected!
+      castedMat.aoMap = textureLightmap
+      castedMat.envMap = this.envMap!
+    })
 
     if (mat.name == 'Window Spacer Bar') {
       castedMat.metalness = 1

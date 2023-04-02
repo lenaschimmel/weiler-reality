@@ -3,11 +3,20 @@ set -e
 BASEDIR=$(realpath $(dirname "$0"))
 cd "$BASEDIR"
 
-objects=( Room BadWand BadInnen FensterHintenBreit FensterHintenSchmal ) # FensterVorn
+objects=( Stuetze Room BadWand BadInnen FensterHintenBreit FensterHintenSchmal FensterVorn Abstellbuegel LaubengangOG MaterialTestKugel_001 MaterialTestKugel_002 MaterialTestKugel_003 )
 
 for obj in "${objects[@]}"
 do
-	echo "Converting maps for $obj"
-	convert -selective-blur 6x6+40% -blur 1x1 -channel RGB -level 0.2%,180%,1.0 ../public/gltf/${obj}_Bake1_PBR_Lightmap.exr -depth 16 -colorspace RGB PNG64:../public/gltf/${obj}_Bake1_PBR_Lightmap_denoise.png
-	convert -selective-blur 3x3+40% -blur 1x1 -level 2%,130%,1.0 ../public/gltf/${obj}_Bake1_PBR_Ambient\ Occlusion.exr -colorspace RGB ../public/gltf/${obj}_Bake1_PBR_Ambient_Occlusion_denoise.jpg
+	if test -f "../bakes/${obj}_Bake1_PBR_Lightmap.exr"; then
+		echo "Converting maps for $obj"
+		convert \( -selective-blur 6x6+40% -blur 1x1 -channel RGB -level 0.2%,180%,1.0 ../bakes/${obj}_Bake1_PBR_Lightmap.exr \) \
+				\( -selective-blur 3x3+40% -blur 1x1              -level 2.0%,130%,1.0 ../bakes/${obj}_Bake1_PBR_Ambient\ Occlusion.exr \) \
+			-compose Multiply -composite \
+			-compress DWAB ../public/bakes/${obj}_map.exr
+			#-depth 16 -colorspace RGB \
+			#PNG64:../public/bakes/${obj}_map.png
+	fi
 done
+
+cp -f ../bakes/Room2.* ../public/gltf/
+cp -f ../bakes/BakeTestTex/* ../public/gltf/BakeTestTex/
