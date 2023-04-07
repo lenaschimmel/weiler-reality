@@ -3,10 +3,10 @@ import { Engine } from './Engine'
 import * as THREE from 'three'
 import { GameEntity } from './GameEntity'
 
-const minLight = 2.0
-const maxLight = 20.0
-const startLight = 12.0
-const targetAvg = 0.25
+const minLight = 1.5
+const maxLight = 80.0
+const startLight = 21.0
+const targetAvg = 0.31
 
 export class RenderEngine implements GameEntity {
   public readonly renderer: WebGLRenderer

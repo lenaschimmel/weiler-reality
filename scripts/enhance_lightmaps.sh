@@ -3,7 +3,8 @@ set -e
 BASEDIR=$(realpath $(dirname "$0"))
 cd "$BASEDIR"
 
-objects=( Stuetze Room BadWand BadInnen FensterHintenBreit FensterHintenSchmal FensterVorn Abstellbuegel LaubengangOG MaterialTestKugel_001 MaterialTestKugel_002 MaterialTestKugel_003 )
+objects=( Abstellbuegel BadInnen BadWand FensterHintenBreit FensterHintenSchmal FensterVorn GitterBreit GitterSchmal Laubengang-EG Laubengang-Rand LaubengangOG RiegelFrontEternit Room Schwelle_Vorn Stuetze )
+#objects=( Werkstrasse WerkstrasseRand )
 
 for obj in "${objects[@]}"
 do
@@ -12,7 +13,7 @@ do
 		convert \( -selective-blur 6x6+40% -blur 1x1 -channel RGB -level 0.2%,180%,1.0 ../bakes/${obj}_Bake1_PBR_Lightmap.exr \) \
 				\( -selective-blur 3x3+40% -blur 1x1              -level 2.0%,130%,1.0 ../bakes/${obj}_Bake1_PBR_Ambient\ Occlusion.exr \) \
 			-compose Multiply -composite \
-			-compress DWAB ../public/bakes/${obj}_map.exr
+			-resize 1024x1024 -compress DWAB ../public/bakes/${obj}_map.exr
 			#-depth 16 -colorspace RGB \
 			#PNG64:../public/bakes/${obj}_map.png
 	fi

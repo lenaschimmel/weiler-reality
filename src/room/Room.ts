@@ -61,6 +61,7 @@ export class Room implements Experience {
       skyGeometry.rotateY(THREE.MathUtils.degToRad(180))
 
       const material = new THREE.MeshBasicMaterial({ map: this.envMap })
+      material.color = new THREE.Color(0x888888)
 
       const mesh = new THREE.Mesh(skyGeometry, material)
 
@@ -196,8 +197,17 @@ export class Room implements Experience {
     if (objectName.startsWith('Stuetze')) {
       objectName = 'Stuetze'
     }
+    if (objectName.startsWith('LaubengangOG')) {
+      objectName = 'LaubengangOG'
+    }
 
-    let lightmapName = '/bakes/' + objectName + '_map.exr'
+    let lightmapName = this.prefix + '/bakes/' + objectName + '_map.exr'
+    console.log(
+      'Prefix is ' +
+        this.prefix +
+        ' and constructed lightmapName is ' +
+        lightmapName
+    )
 
     let lightmapTex = this.lightmaps.get(lightmapName)
     if (!lightmapTex) {
@@ -222,7 +232,7 @@ export class Room implements Experience {
       castedMat.aoMap = null
     }
 
-    console.log(name + ': converted material ' + mat.name + ' to', castedMat)
+    //console.log(name + ': converted material ' + mat.name + ' to', castedMat)
 
     return castedMat
   }
