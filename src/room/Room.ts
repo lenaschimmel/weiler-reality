@@ -7,25 +7,37 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader'
 
+import { DeviceOrientationControls } from './DeviceOrientationControls'
+
 export class Room implements Experience {
   resources: Resource[] = []
   teleporter: Teleporter | undefined
   envMap: THREE.Texture | undefined
   lightmaps: Map<string, Promise<THREE.DataTexture>> = new Map()
 
+  deviceOrientationControls: any
+
   // TODO use vite env vars to set this according to build mode
   // TODO understand why this is a thing at all, we use /wr in the URL in both modes anyway!
-  //prefix = '/wr/'
-  prefix = ''
+  prefix = '/wr/'
+  //prefix = ''
 
   constructor(private engine: Engine) {}
 
   init() {
     this.initSkySphere()
 
+    this.deviceOrientationControls = new DeviceOrientationControls(
+      this.engine.camera.instance
+    )
+
     this.engine.xr!.addEventListener('sessionstart', () => {
       this.teleporter = new Teleporter(this.engine)
       this.teleporter.baseReferenceSpace = this.engine.xr.getReferenceSpace()
+      this.deviceOrientationControls.disconnect()
+    })
+    this.engine.xr!.addEventListener('sessionend', () => {
+      this.deviceOrientationControls.connect()
     })
     this.engine.xr.enabled = true
 
@@ -39,7 +51,9 @@ export class Room implements Experience {
 
   resize() {}
 
-  update() {}
+  update() {
+    this.deviceOrientationControls.update()
+  }
 
   initSkySphere() {
     const pmremGenerator = new THREE.PMREMGenerator(
