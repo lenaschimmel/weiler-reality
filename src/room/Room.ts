@@ -2,57 +2,38 @@ import { Engine } from '../engine/Engine'
 import * as THREE from 'three'
 import { Experience } from '../engine/Experience'
 import { Resource } from '../engine/Resources'
-import { Teleporter } from './Teleporter'
-import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader'
-
-import { DeviceOrientationControls } from './DeviceOrientationControls'
+import { Controls } from './Controls'
 
 export class Room implements Experience {
   resources: Resource[] = []
-  teleporter: Teleporter | undefined
   envMap: THREE.Texture | undefined
   lightmaps: Map<string, Promise<THREE.DataTexture>> = new Map()
-
-  deviceOrientationControls: any
+  controls?: Controls
 
   // TODO use vite env vars to set this according to build mode
   // TODO understand why this is a thing at all, we use /wr in the URL in both modes anyway!
   prefix = '/wr/'
-  //prefix = ''
+  //prefix = '';
 
   constructor(private engine: Engine) {}
 
   init() {
     this.initSkySphere()
-
-    this.deviceOrientationControls = new DeviceOrientationControls(
-      this.engine.camera.instance
-    )
-
-    this.engine.xr!.addEventListener('sessionstart', () => {
-      this.teleporter = new Teleporter(this.engine)
-      this.teleporter.baseReferenceSpace = this.engine.xr.getReferenceSpace()
-      this.deviceOrientationControls.disconnect()
-    })
-    this.engine.xr!.addEventListener('sessionend', () => {
-      this.deviceOrientationControls.connect()
-    })
-    this.engine.xr.enabled = true
-
     // This does not only load the scene, it also applies several changes
     this.loadScene()
-
-    document.body.appendChild(
-      VRButton.createButton(this.engine.renderEngine.renderer)
-    )
+    this.engine.xr.enabled = true
+    this.controls = new Controls(this.engine)
+    // document.body.appendChild(
+    //   VRButton.createButton(this.engine.renderEngine.renderer)
+    // )
   }
 
   resize() {}
 
-  update() {
-    this.deviceOrientationControls.update()
+  update(delta: number) {
+    this.controls?.update(delta)
   }
 
   initSkySphere() {
@@ -88,7 +69,7 @@ export class Room implements Experience {
     gltfLoader.load('/wr/gltf/Room2.gltf', (gltf) => {
       const root = gltf.scene
 
-      this.logObjectTree(root)
+      // this.logObjectTree(root)
 
       // SimpleBake adds a copy of each object with fully baked textures (containing
       // combined base texture and lighting), which is the inferior approach to visualization.
@@ -216,20 +197,20 @@ export class Room implements Experience {
     }
 
     let lightmapName = this.prefix + '/bakes/' + objectName + '_map.exr'
-    console.log(
-      'Prefix is ' +
-        this.prefix +
-        ' and constructed lightmapName is ' +
-        lightmapName
-    )
+    // console.log(
+    //   'Prefix is ' +
+    //     this.prefix +
+    //     ' and constructed lightmapName is ' +
+    //     lightmapName
+    // )
 
     let lightmapTex = this.lightmaps.get(lightmapName)
-    if (!lightmapTex) {
+    if (!lightmapTex && !lightmapName.endsWith('RaumplanMoebel_map.exr')) {
       lightmapTex = new EXRLoader().loadAsync(lightmapName)
       this.lightmaps.set(lightmapName, lightmapTex)
     }
 
-    lightmapTex.then((textureLightmap) => {
+    lightmapTex?.then((textureLightmap) => {
       textureLightmap.flipY = true
       textureLightmap.encoding = THREE.LinearEncoding
       // Lightmaps must be assigned as ao maps to work as expected!

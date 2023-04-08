@@ -30,10 +30,10 @@
     <meta name="msapplication-config" content="/favicons/browserconfig.xml" />
     <meta name="theme-color" content="#ffffff" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Grüner Weiler Ausbauwohnung 61,3m²</title>
+    <title>Grüner Weiler Ausbauwohnung 61,1m²</title>
   </head>
   <body>
-    <div id="blocker">
+    <!-- <div id="blocker">
       <div id="instructions">
         <p style="font-size: 36px">Klicken um zu Steuern</p>
         <p>
@@ -42,6 +42,13 @@
           Exit: ESC
         </p>
       </div>
+    </div> -->
+    <div id="buttonBar">
+      <button class="niceButton" id="buttonMouse">Maussteuerung</button>
+      <button class="niceButton" id="buttonAccelerometer">Accelerometer</button>
+      <button class="niceButton" id="buttonVirtualReality">
+        Virtual Reality
+      </button>
     </div>
     <canvas id="canvas"></canvas>
     <script type="module" src="/src/main.ts"></script>

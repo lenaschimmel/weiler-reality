@@ -67,7 +67,6 @@ export class Engine {
   update(delta: number) {
     if (!this.loader.isComplete) return
 
-    this.camera.update(delta)
     this.renderEngine.update(delta)
     this.experience.update(delta)
     this.debug.update()

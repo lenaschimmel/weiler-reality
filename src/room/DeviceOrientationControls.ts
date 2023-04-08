@@ -15,6 +15,7 @@ export class DeviceOrientationControls {
   private object: THREE.Object3D
 
   private enabled: boolean = true
+  private gotEvent: boolean = false
 
   private deviceOrientation: any = {}
   private screenOrientation: number = 0
@@ -35,16 +36,16 @@ export class DeviceOrientationControls {
     this.euler = new THREE.Euler()
     this.q0 = new THREE.Quaternion()
     this.q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)) // - PI/2 around the x-axis
-
-    this.connect()
   }
 
   public onDeviceOrientationChangeEvent(event: any) {
     this.deviceOrientation = event
+    this.gotEvent = true
   }
 
   public onScreenOrientationChangeEvent() {
     this.screenOrientation = window.orientation || 0
+    this.gotEvent = true
   }
 
   // The angles alpha, beta and gamma form a set of intrinsic Tait-Bryan angles of type Z-X'-Y''
@@ -93,8 +94,18 @@ export class DeviceOrientationControls {
     this.enabled = false
   }
 
+  public toggle() {
+    if (this.enabled) {
+      this.disconnect()
+    } else {
+      this.connect()
+    }
+    console.log('Accelerometer: ' + this.enabled)
+  }
+
   public update() {
     if (this.enabled === false) return
+    if (this.gotEvent === false) return
 
     var alpha = this.deviceOrientation.alpha
       ? THREE.MathUtils.degToRad(this.deviceOrientation.alpha) +
